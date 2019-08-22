@@ -34,19 +34,21 @@ def load_urls_from_csv(csv_path: Path):
 def download_images(img_urls, save_folder: Path):
     existing_imgs = set([p for p in save_folder.iterdir() if p.is_file()])
 
-    for url in tqdm(img_urls, desc='Downloading images'):
-        try:
-            url_components = url.split('/')
-            img_name = url_components[-2] + '_' + url_components[-1].split('.')[0] + '.png'
-            img_path = save_folder / img_name
-        except Exception:
-            continue
-
-        if img_path not in existing_imgs:
+    with tqdm(total=len(img_urls), desc='Downloading images') as pbar:
+        for url in img_urls:
             try:
-                download_img(url, img_path)
-            except Exception as e:
-                print(e)
+                url_components = url.split('/')
+                img_name = url_components[-2] + '_' + url_components[-1].split('.')[0] + '.png'
+                img_path = save_folder / img_name
+            except Exception:
+                continue
+
+            if img_path not in existing_imgs:
+                try:
+                    download_img(url, img_path)
+                except Exception as e:
+                    pbar.write('Error while downloading image: {}'.format(e))
+            pbar.update()
 
 
 if __name__ == '__main__':

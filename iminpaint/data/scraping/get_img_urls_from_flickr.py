@@ -32,7 +32,7 @@ def get_urls(search_text, image_tags, max_count):
                 try:
                     urls.append(photo.get('url_m'))
                 except Exception:
-                    print("URL for image number {} could not be fetched".format(count))
+                    pbar.write("URL for image number {} could not be fetched".format(count))
             else:
                 break
             pbar.update()
