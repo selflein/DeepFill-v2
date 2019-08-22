@@ -1,10 +1,9 @@
 import os
-import urllib
-from io import BytesIO
 from pathlib import Path
 
+from iminpaint.data.scraping.utils import download_img
+
 import requests
-from PIL import Image
 from tqdm import tqdm
 
 api_url = 'http://www.image-net.org/api/text/imagenet.synset.geturls?wnid={}'
@@ -28,16 +27,9 @@ def download_synset(synset_id: str, download_path: Path):
             try:  
                 download_img(url, download_path / (str(i) + '.png'))
             except:
-                print('Error when downloading {}.'.format(url))
+                print('Error when scraping {}.'.format(url))
 
     return len([f for f in download_path.iterdir()])
-
-
-def download_img(url: str, save_path: Path):  
-    with requests.get(url, timeout=1) as resp:
-        if resp.status_code == requests.codes.ok:
-            img = Image.open(BytesIO(resp.content))
-            img.save(save_path)
 
 
 if __name__ == '__main__':

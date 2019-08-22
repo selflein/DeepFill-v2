@@ -1,6 +1,6 @@
 .idea/
-data/imagenet
-
+data/datasets
+.env
 # Byte-compiled / optimized / DLL files
 
 __pycache__/
