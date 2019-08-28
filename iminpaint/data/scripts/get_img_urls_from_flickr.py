@@ -15,7 +15,7 @@ def get_urls(search_text, image_tags, max_count):
 
     # API documentation: https://www.flickr.com/services/api/flickr.photos.search.html
     photos = flickr.walk(
-        text=search_text,
+        text=image_tags,
         tag_mode='any',
         tags=image_tags,
         extras='url_m',  # url_o for original-res images (others: s, m, l)

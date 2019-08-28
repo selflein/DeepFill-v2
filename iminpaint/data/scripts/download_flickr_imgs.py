@@ -6,7 +6,7 @@ from multiprocessing import Pool
 from tqdm import tqdm
 import pandas as pd
 
-from iminpaint.data.scraping.utils import download_img
+from iminpaint.data.scripts.utils import download_img
 
 
 def download_images_threaded(img_urls, save_path: Path, num_threads: int = 4):

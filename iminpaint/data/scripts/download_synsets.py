@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from iminpaint.data.scraping.utils import download_img
+from iminpaint.data.scripts.utils import download_img
 
 import requests
 from tqdm import tqdm
@@ -27,7 +27,7 @@ def download_synset(synset_id: str, download_path: Path):
             try:  
                 download_img(url, download_path / (str(i) + '.png'))
             except:
-                print('Error when scraping {}.'.format(url))
+                print('Error when scripts {}.'.format(url))
 
     return len([f for f in download_path.iterdir()])
 

@@ -3,8 +3,8 @@ from argparse import ArgumentParser
 
 from tqdm import tqdm
 
-from iminpaint.data.scraping.download_flickr_imgs import download_images
-from iminpaint.data.scraping.get_img_urls_from_flickr import get_urls
+from iminpaint.data.scripts.download_flickr_imgs import download_images
+from iminpaint.data.scripts.get_img_urls_from_flickr import get_urls
 
 
 if __name__ == '__main__':
