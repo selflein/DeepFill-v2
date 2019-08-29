@@ -17,7 +17,7 @@ def create_train_val_loader_from_single_folder(
         pin_memory=True) \
         -> (DataLoader, DataLoader):
     """Create train and validation dataloader from single image directory.
-    
+
     Args:
         path: Path to image folder.
         transform: Torchvision data transformation.
