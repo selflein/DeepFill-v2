@@ -30,3 +30,4 @@ class Generator(nn.Module):
 
     def forward(self, inp):
         return self.main(inp)
+
