@@ -4,7 +4,7 @@ from pathlib import Path
 
 import cv2 as cv
 import numpy as np
-from scipy import io
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 # Based on
@@ -53,7 +53,8 @@ if __name__ == '__main__':
 
     # Load the model.
     net = cv.dnn.readNetFromCaffe(args.prototxt, args.caffemodel)
-    for img_path in Path(args.input).iterdir():
+    img_files = list(Path(args.input).iterdir())
+    for img_path in tqdm(img_files, desc='Creating edge masks...'):
         frame = cv.imread(str(img_path))
 
         height, width, _ = frame.shape
