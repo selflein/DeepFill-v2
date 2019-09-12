@@ -62,11 +62,13 @@ if __name__ == '__main__':
     net = cv.dnn.readNetFromCaffe(args.prototxt, args.caffemodel)
     net.setPreferableTarget(cv.dnn.DNN_TARGET_OPENCL)
 
-    img_files = list(chunks(list(Path(args.input).iterdir()), 16))
-    for img_chunk in tqdm(img_files, desc='Creating edge masks...'):
-        with Pool(8) as reader_pool:
-            frames = reader_pool.map(imread, img_chunk)
+    existing_files = set([p.name for p in Path(args.output).iterdir()])
+    remaining_files = [p for p in Path(args.input).iterdir()
+                       if p.name not in existing_files]
 
+    img_files = list(chunks(remaining_files, 16))
+    for img_chunk in tqdm(img_files, desc='Creating edge masks...'):
+        frames = list(map(imread, img_chunk))
         height, width, ch = frames[0].shape
 
         inp = cv.dnn.blobFromImages(frames, scalefactor=1.0,
@@ -74,13 +76,12 @@ if __name__ == '__main__':
                                     mean=(
                                         104.00698793, 116.66876762,
                                         122.67891434),
-                                    swapRB=False, crop=False)
+                                    swapRB=True, crop=False)
         net.setInput(inp)
         out = net.forward()
         heds = [(hed[0, :, :] > .6).astype(np.int8) * 255 for hed in out]
         # kernel = np.ones((3, 3), np.uint8)
         # img_erosion = cv.erode(hed, kernel, iterations=1)
-
         if args.visualize:
             fig, ax = plt.subplots(3, 1)
             ax[0].imshow(frames[0])
@@ -89,6 +90,5 @@ if __name__ == '__main__':
             plt.show()
 
         out_paths = map(lambda p: os.path.join(args.output, p.name), img_chunk)
-        with Pool(8) as reader_pool:
-            reader_pool.starmap(cv.imwrite, zip(out_paths, heds))
-
+        for path, hed in zip(out_paths, heds):
+            cv.imwrite(path, hed)

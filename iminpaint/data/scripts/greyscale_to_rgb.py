@@ -32,3 +32,16 @@ if __name__ == '__main__':
                 img_path.unlink()
                 print(img_path)
                 continue
+        elif im.shape[2] == 4:
+            im = im[:, :, :3]
+            try:
+                io.imsave(img_path, im)
+            except ValueError:
+                img_path.unlink()
+                print(img_path)
+                continue
+        elif im.shape[2] != 3:
+            print("Wrong number of channels")
+            print(img_path)
+            img_path.unlink()
+
