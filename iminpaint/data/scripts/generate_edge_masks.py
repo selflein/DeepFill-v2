@@ -60,6 +60,8 @@ if __name__ == '__main__':
 
     # Load the model.
     net = cv.dnn.readNetFromCaffe(args.prototxt, args.caffemodel)
+    net.setPreferableTarget(cv.dnn.DNN_TARGET_OPENCL)
+
     img_files = list(chunks(list(Path(args.input).iterdir()), 16))
     for img_chunk in tqdm(img_files, desc='Creating edge masks...'):
         with Pool(8) as reader_pool:
