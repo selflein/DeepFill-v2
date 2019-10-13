@@ -102,4 +102,4 @@ def generate_mask(range_vertices: Tuple[int, int],
     if random.random() < 0.5:
         mask = np.flipud(mask)
 
-    return torch.from_numpy(mask.copy())
+    return mask.astype(np.int8)
