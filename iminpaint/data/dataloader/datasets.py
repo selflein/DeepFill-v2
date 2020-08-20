@@ -33,10 +33,11 @@ class InpaintingDataset(Dataset):
         edges_mask = (io.imread(edge_mask_path) / 255).astype(np.int8)
 
         draw_mask = generate_mask(
-            range_vertices=(2, 20),
+            range_vertices=(2, 10),
             range_length=(20, 50),
             range_brush_width=(20, 50),
-            range_angle=(0, np.pi),
+            range_angle=(-np.pi, np.pi),
+            range_num_patches=(1, 3),
             image_height=img.shape[0],
             image_width=img.shape[1]
         )

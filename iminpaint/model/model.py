@@ -5,7 +5,7 @@ from tqdm import tqdm
 from torch import optim
 
 from iminpaint.data.dataloader import dataloaders
-from iminpaint.models import generator, discriminator
+from iminpaint.model import generator, discriminator
 
 
 class Model:

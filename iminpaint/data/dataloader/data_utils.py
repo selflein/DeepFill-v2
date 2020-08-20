@@ -50,8 +50,10 @@ def generate_mask(range_vertices: Tuple[int, int],
                   range_length: Tuple[float, float],
                   range_brush_width: Tuple[float, float],
                   range_angle: Tuple[float, float],
+                  range_num_patches: Tuple[int, int],
                   image_width: int = 256,
-                  image_height: int = 256) -> torch.Tensor:
+                  image_height: int = 256,
+                  ) -> torch.Tensor:
     """
     Generates random mask based on parameters given to be blacked out in the
     image for inpainting.
@@ -63,6 +65,7 @@ def generate_mask(range_vertices: Tuple[int, int],
         range_brush_width: Tuple of min. and max. width of the brush of each
             line segment.
         range_angle: Tuple of min. and max. turning angle of brush in radiants.
+        num_patches: Number of times the stroking algorithm is run.
         image_width: Width of the image in pixels.
         image_height: Height of the image in pixels.
 
@@ -71,30 +74,33 @@ def generate_mask(range_vertices: Tuple[int, int],
             parameters.
     """
     mask = np.zeros((image_height, image_width))
-    num_vertex = random.randint(*range_vertices)
+    num_patches = random.randint(*range_num_patches)
 
-    start_x = random.randint(0, image_width)
-    start_y = random.randint(0, image_height)
+    for i in range(num_patches):
+        num_vertex = random.randint(*range_vertices)
 
-    for i in range(num_vertex):
-        angle = random.uniform(*range_angle)
+        start_x = random.randint(0, image_width)
+        start_y = random.randint(0, image_height)
 
-        if i % 2 == 0:
-            angle = 2 * np.pi - angle
+        for i in range(num_vertex):
+            angle = random.uniform(*range_angle)
 
-        length = random.uniform(*range_length)
-        brush_width = random.randint(*range_brush_width)
+            if i % 2 == 0:
+                angle = 2 * np.pi - angle
 
-        end_x = int(start_x + length * np.sin(angle))
-        end_y = int(start_y + length * np.cos(angle))
+            length = random.uniform(*range_length)
+            brush_width = random.randint(*range_brush_width)
 
-        cv2.line(mask, (start_x, start_y), (end_x, end_y), color=1,
-                 thickness=brush_width)
-        cv2.circle(mask, (end_x, end_y), radius=int(brush_width/2),
-                   thickness=-1, color=1)
+            end_x = int(start_x + length * np.sin(angle))
+            end_y = int(start_y + length * np.cos(angle))
 
-        start_x = end_x
-        start_y = end_y
+            cv2.line(mask, (start_x, start_y), (end_x, end_y), color=1,
+                    thickness=brush_width)
+            cv2.circle(mask, (end_x, end_y), radius=int(brush_width/2),
+                    thickness=-1, color=1)
+
+            start_x = end_x
+            start_y = end_y
 
     if random.random() < 0.5:
         mask = np.fliplr(mask)

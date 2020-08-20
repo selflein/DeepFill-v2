@@ -1,5 +1,15 @@
 from torch import nn
 
+# Two stage:
+#   1. Encoder-Decoder net trained with spatially-discounted L1 reconstruction loss
+#       -> weighting gamma^l where l is distance to next know pixel and gamma=0.99
+#   2. Refinement encoder-decoder net trained with L1 and GAN loss
+#
+# * Mirror Padding
+# * No batch normalization
+# * ELU instead of ReLU
+# * Contextual attention
+
 
 class Generator(nn.Module):
     def __init__(self, feature_map_scale=8, latent_vector_size=100, n_gpu=1):
