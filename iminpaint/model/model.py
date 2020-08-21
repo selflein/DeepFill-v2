@@ -3,38 +3,67 @@ from pathlib import Path
 import torch
 from tqdm import tqdm
 from torch import optim
+from torch.nn import functional as F
 
+from iminpaint.model.generator import Generator
 from iminpaint.data.dataloader import dataloaders
-from iminpaint.model import generator, discriminator
+from iminpaint.model.discriminator import Discriminator
 
 
 class Model:
-    def __init__(self, img_folder):
-        self.img_folder = img_folder
+    def __init__(self):
+        pass
 
-    def train(self, num_epochs, batch_size=16, num_workers=4, lr=1e-4, beta1=0.5,
+    def train(self, img_folder, edges_folder, num_epochs, batch_size=16, num_workers=4, lr=1e-4, beta1=0.5,
               device=torch.device('cuda')):
-        train_loader, val_loader = dataloaders.create_train_val_loader(self.img_folder,
-                                                                       batch_size=batch_size,
-                                                                       num_workers=num_workers)
+        train_loader, val_loader = dataloaders.create_train_val_loader(
+            img_folder,
+            edges_folder,
+            batch_size=batch_size,
+            num_workers=num_workers
+        )
 
-        gen = generator.Generator().to(device)
+        gen = Generator(width=1, use_contextual_attention=False).to(device)
         gen_optim = optim.Adam(gen.parameters(), lr=lr, betas=(beta1, 0.999))
 
-        disc = discriminator.Discriminator().to(device)
+        disc = Discriminator(c_base=64).to(device)
         disc_optim = optim.Adam(disc.parameters())
 
         for epoch in range(num_epochs):
 
             with tqdm(len(train_loader), desc='Train epoch {}'.format(epoch)) as pbar:
-                for batch in train_loader:
-                    print(batch)
+                for batch_idx, batch in enumerate(train_loader):
+                    img, masked_img, mask, edges_mask = batch
+
+                    # Update discriminator
+                    disc_optim.zero_grad()
+                    with torch.no_grad():
+                        coarse, fine = gen(masked_img, mask, edges_mask)
+
+                    scores_fake = disc(fine, mask, edges_mask)
+                    scores_real = disc(img, mask, edges_mask)
+
+                    disc_loss.backward()
+                    disc_optim.step()
+
+                    # Update generator
+                    if batch_idx % 5 == 0:
+                        gen_optim.zero_grad()
+
+                        coarse, fine = gen(masked_img, mask, edges_mask)
+                        scores_fake = disc(fine, mask, edges_mask)
+
+                        # TODO: Add spatially discounted L1 loss
+                        gen_loss = F.l1_loss(coarse, img)
+
+                        gen_loss.backward()
+                        gen_optim.step()
 
                     pbar.update()
 
             with tqdm(len(val_loader), desc='Val epoch {}'.format(epoch)) as pbar:
                 for batch in val_loader:
-                    print(batch)
+                    img, masked_img, mask, edges_mask = batch
 
                     pbar.update()
 

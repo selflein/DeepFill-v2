@@ -1,7 +1,8 @@
 .idea
-data/datasets
+data
 .env
-models/**
+models
+notebooks
 .vscode
 
 # Byte-compiled / optimized / DLL files
