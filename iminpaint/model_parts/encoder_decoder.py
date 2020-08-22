@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from iminpaint.model.gated_convolution import GatedConv
+from iminpaint.model_parts.gated_convolution import GatedConv
 
 # * Mirror Padding
 # * No batch normalization
@@ -26,8 +26,7 @@ class EncoderDecoder(nn.Module):
         self.use_contextual_attention = use_contextual_attention
 
         self.encoder = nn.Sequential(
-            nn.Conv2d(5, 32 * width, kernel_size=5, padding=2,
-                      padding_mode='replicate', stride=1),
+            GatedConv(5, 32 * width, kernel_size=5, stride=1),
             GatedConv(32 * width, 64 * width, stride=2),
             GatedConv(64 * width, 64 * width),
             GatedConv(64 * width, 128 * width, stride=2),
@@ -54,8 +53,8 @@ class EncoderDecoder(nn.Module):
             nn.Upsample(scale_factor=2, mode='nearest'),
             GatedConv(64 * width, 32 * width),
             GatedConv(32 * width, 16 * width),
-            nn.Conv2d(16 * width, 3, kernel_size=3, stride=1, padding=1,
-                      padding_mode='replicate')
+            GatedConv(16 * width, 3, activation=None),
+            nn.Sigmoid()
         )
 
     def forward(self, inp):

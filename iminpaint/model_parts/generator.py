@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from iminpaint.model.encoder_decoder import EncoderDecoder
+from iminpaint.model_parts.encoder_decoder import EncoderDecoder
 
 
 class Generator(nn.Module):
@@ -33,7 +33,7 @@ class Generator(nn.Module):
         refinement_inp = torch.cat([pasted_coarse_result, mask, sketch], dim=1)
 
         fine_result = self.fine_encoder_decoder(refinement_inp)
-        return coarse_result, fine_result
+        return fine_result, coarse_result
 
 
 if __name__ == '__main__':

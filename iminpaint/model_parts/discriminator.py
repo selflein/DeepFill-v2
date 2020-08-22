@@ -4,9 +4,15 @@ from torch import nn
 
 class SpecConv2d(nn.Module):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, kernel_size=5, stride=2, padding=2, **kwargs):
         super().__init__()
-        self.spec_cnn = nn.utils.spectral_norm(nn.Conv2d(*args, **kwargs))
+        self.spec_cnn = nn.utils.spectral_norm(
+            nn.Conv2d(*args,
+                      kernel_size=kernel_size,
+                      stride=stride,
+                      padding=padding,
+                      **kwargs)
+        )
         self.leaky_relu = nn.LeakyReLU(0.2, inplace=True)
 
     def forward(self, inp):
@@ -16,17 +22,19 @@ class SpecConv2d(nn.Module):
 
 
 class Discriminator(nn.Module):
+
     def __init__(self, c_base=64):
         super(Discriminator, self).__init__()
 
         self.main = nn.Sequential(
-            SpecConv2d(5, c_base, kernel_size=5, stride=1, padding=2),
-            SpecConv2d(c_base, c_base * 2, kernel_size=5, stride=2, padding=2),
-            SpecConv2d(c_base * 2, c_base * 4, kernel_size=5, stride=2, padding=2),
-            SpecConv2d(c_base * 4, c_base * 4, kernel_size=5, stride=2, padding=2),
-            SpecConv2d(c_base * 4, c_base * 4, kernel_size=5, stride=2, padding=2),
+            SpecConv2d(5, c_base, stride=1),
+            SpecConv2d(c_base, c_base * 2),
+            SpecConv2d(c_base * 2, c_base * 4),
+            SpecConv2d(c_base * 4, c_base * 4),
+            SpecConv2d(c_base * 4, c_base * 4),
             nn.utils.spectral_norm(
-                nn.Conv2d(c_base * 4, c_base * 4, kernel_size=5, stride=2, padding=2)
+                nn.Conv2d(c_base * 4, c_base * 4, kernel_size=5, stride=2,
+                          padding=2)
             )
         )
 
@@ -35,7 +43,7 @@ class Discriminator(nn.Module):
             sketch = torch.zeros_like(mask)
 
         inp = torch.cat([img, mask, sketch], dim=1)
-        return self.main(inp)
+        return self.main(inp).view(inp.size(0), -1)
 
 
 if __name__ == "__main__":
@@ -43,4 +51,4 @@ if __name__ == "__main__":
     output = test_net(torch.zeros(4, 3, 256, 256),
                       torch.zeros(4, 1, 256, 256),
                       torch.zeros(4, 1, 256, 256))
-    assert output.shape == (4, 256, 8, 8)
+    assert output.shape == (4, 256 * 8 * 8)

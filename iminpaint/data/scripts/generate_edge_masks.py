@@ -58,7 +58,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     cv.dnn_registerLayer('Crop', CropLayer)
 
-    # Load the model.
+    # Load the model_parts.
     net = cv.dnn.readNetFromCaffe(args.prototxt, args.caffemodel)
     net.setPreferableTarget(cv.dnn.DNN_TARGET_OPENCL)
 
