@@ -4,6 +4,8 @@ import torch
 from torch import optim
 import pytorch_lightning as pl
 from torch.nn import functional as F
+from torchvision.utils import make_grid
+from hydra.utils import to_absolute_path
 
 from iminpaint.data.dataloader import dataloaders
 from iminpaint.model_parts.generator import Generator
@@ -21,14 +23,14 @@ class DeepFill(pl.LightningModule):
         self.disc = Discriminator(c_base=self.hparams.model.disc_c_base)
 
         self.train_loader, self.val_loader = dataloaders.create_train_val_loader(
-            path=Path(self.hparams.data.path),
-            edges_path=Path(self.hparams.data.edges_path),
+            path=Path(to_absolute_path(self.hparams.data.path)),
+            edges_path=Path(to_absolute_path(self.hparams.data.edges_path)),
             batch_size=self.hparams.data.batch_size,
             num_workers=self.hparams.data.num_workers
         )
 
     def forward(self, masked_img, mask, edges_mask):
-        _, fine = self.gen(masked_img, mask, edges_mask)
+        fine, _ = self.gen(masked_img, mask, edges_mask)
         return self.get_completed_img(masked_img, mask, fine)
 
     def training_step(self, batch, batch_idx, optimizer_idx) -> pl.TrainResult:
@@ -42,7 +44,10 @@ class DeepFill(pl.LightningModule):
         # Update generator
         if optimizer_idx == 1:
             if not batch_idx % 5 == 0:
-                return pl.TrainResult()
+                # Skip the optimization of generator for this batch
+                # This is somewhat of a hack since PL does not easily allow
+                # skipping a training step
+                return {'loss': torch.tensor(0., requires_grad=True)}
             gen_loss, l1_loss = self.generator_step(batch)
             res = pl.TrainResult(gen_loss + l1_loss)
             res.log('train/l1_loss', l1_loss)
@@ -53,7 +58,7 @@ class DeepFill(pl.LightningModule):
     def generator_step(self, batch):
         img, masked_img, mask, edges_mask = batch
 
-        coarse, fine = self.gen(masked_img, mask, edges_mask)
+        fine, coarse = self.gen(masked_img, mask, edges_mask)
         completed = self.get_completed_img(masked_img, mask, fine)
 
         # TODO: Add spatially discounted L1 loss
@@ -68,7 +73,7 @@ class DeepFill(pl.LightningModule):
     def discriminator_step(self, batch):
         img, masked_img, mask, edges_mask = batch
         with torch.no_grad():
-            _, fine = self.gen(masked_img, mask, edges_mask)
+            fine, coarse = self.gen(masked_img, mask, edges_mask)
         completed = self.get_completed_img(masked_img, mask, fine)
 
         scores_fake = self.disc(completed, mask, edges_mask)
@@ -82,12 +87,18 @@ class DeepFill(pl.LightningModule):
     def validation_step(self, batch, batch_idx) -> pl.EvalResult:
         img, masked_img, mask, edges_mask = batch
 
-        coarse, fine = self.gen(masked_img, mask, edges_mask)
+        fine, coarse = self.gen(masked_img, mask, edges_mask)
         completed = self.get_completed_img(masked_img, mask, fine)
         scores_fake = self.disc(completed, mask, edges_mask)
         gen_loss = -scores_fake.mean()
 
-        res = pl.EvalResult(gen_loss)
+        if batch_idx == 0:
+            writer = self.logger.experiment
+            writer.add_image('coarse', make_grid(coarse))
+            writer.add_image('fine', make_grid(fine))
+            writer.add_image('completed', make_grid(completed))
+
+        res = pl.EvalResult(early_stop_on=gen_loss, checkpoint_on=gen_loss)
         res.log('val/gen_loss', gen_loss, prog_bar=True)
         res.log('val/l1_completed', F.l1_loss(completed, img), prog_bar=True)
         return res
