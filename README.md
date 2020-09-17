@@ -17,7 +17,7 @@ python train.py
 and a folder will be created with Tensorboard logs and checkpoints in `./outputs`.
 
 ### TODOs
-* [] Implement Contextual Attention & respective network branch 
-* [] Add support for Places2 and CelebA-HQ faces datasets used in the paper
-* [] Add pre-trained models 
+* [x] Implement Contextual Attention & respective network branch 
+* [ ] Add support for Places2 and CelebA-HQ faces datasets used in the paper
+* [ ] Add pre-trained models 
  
