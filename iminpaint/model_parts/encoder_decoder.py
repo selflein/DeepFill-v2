@@ -32,7 +32,7 @@ class ContextualAttention(nn.Module):
 
         # Mask for background patches
         mask_cols = self.img_2_col(mask, ksize, stride)
-        masked_cols = (mask_cols.sum((2, 3, 4)) == 0.).float()
+        masked_cols = mask_cols.sum((2, 3, 4)) == 0.
 
         # Get the kernels from the background patch to convolve the
         # foreground with
@@ -52,7 +52,7 @@ class ContextualAttention(nn.Module):
             if self.use_attention_propagation:
                 _, _, h, w = out.shape
                 padding_fuse = int(fuse_k // 2)
-                eye_kernel = torch.eye(fuse_k).view(1, 1, fuse_k, fuse_k)
+                eye_kernel = torch.eye(fuse_k).view(1, 1, fuse_k, fuse_k).cuda()
 
                 # Convolve output and transposed output with identity kernel
                 out = out.reshape(1, 1, h * w, h * w)
@@ -66,10 +66,8 @@ class ContextualAttention(nn.Module):
                           .permute(0, 2, 1, 4, 3)
                           .reshape(1, h * w, h, w))
 
-            mask = masked_cols[i, :, None, None]
-            out *= mask
+            out[:, masked_cols[i]] = -1000
             out = torch.softmax(self.softmax_scale * out, dim=1)
-            out *= mask
 
             out = F.conv_transpose2d(out, target, stride=rate, padding=padding)
 
@@ -152,7 +150,8 @@ class EncoderDecoder(nn.Module):
 
         if self.use_contextual_attention:
             context = self.attention_branch(inp)
-            context = self.contextual_attention(context, context, mask)
+            mask_resized = F.interpolate(mask, size=context.size()[-2:])
+            context = self.contextual_attention(context, context, mask_resized)
             context = self.attention_branch_cont(context)
             enc = torch.cat([enc, context], dim=1)
 
@@ -162,7 +161,7 @@ class EncoderDecoder(nn.Module):
 if __name__ == '__main__':
     net = EncoderDecoder(1, True)
     test_inp = torch.zeros(4, 5, 256, 256)
-    output = net(test_inp)
+    output = net(test_inp, test_inp)
     assert output.shape == (4, 3, 256, 256)
 
     att = ContextualAttention(use_attention_propagation=True)

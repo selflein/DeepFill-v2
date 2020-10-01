@@ -1,11 +1,9 @@
-import os
 import argparse
 from pathlib import Path
 
 import cv2 as cv
 import numpy as np
 from tqdm import tqdm
-from skimage.io import imread
 import matplotlib.pyplot as plt
 
 # Based on
@@ -71,7 +69,7 @@ if __name__ == '__main__':
 
     img_files = list(chunks(remaining_files, 16))
     for img_chunk in tqdm(img_files, desc='Creating edge masks...'):
-        frames = list(map(imread, img_chunk))
+        frames = [cv.imread(str(img)) for img in img_chunk]
         height, width, ch = frames[0].shape
 
         inp = cv.dnn.blobFromImages(frames, scalefactor=1.0,
@@ -79,7 +77,7 @@ if __name__ == '__main__':
                                     mean=(
                                         104.00698793, 116.66876762,
                                         122.67891434),
-                                    swapRB=True, crop=False)
+                                    swapRB=False, crop=False)
         net.setInput(inp)
         out = net.forward()
         heds = [(hed[0, :, :] > .6).astype(np.int8) * 255 for hed in out]

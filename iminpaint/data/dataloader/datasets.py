@@ -3,7 +3,7 @@ from pathlib import Path
 
 import torch
 import numpy as np
-from skimage import io
+from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor
 
@@ -23,14 +23,13 @@ class InpaintingDataset(Dataset):
         self.edge_masks_folder = edge_masks_folder
         self.freeform_mask = freeform_mask
         self.rect_mask = rect_mask
-        io.use_plugin('pil')
 
     def __len__(self):
         return len(self.img_paths)
 
     def __getitem__(self, i):
         img_path = self.img_paths[i]
-        img = io.imread(str(img_path))
+        img = Image.open(str(img_path))
 
         if self.transforms:
             img = self.transforms(img)
@@ -60,7 +59,7 @@ class InpaintingDataset(Dataset):
 
         edge_mask_path = str(self.edge_masks_folder / img_path.name)
         edges_mask = torch.from_numpy(
-            (io.imread(edge_mask_path) / 255.).astype(np.float32)
+            (np.array(Image.open(edge_mask_path)) / 255.).astype(np.float32)
         ).unsqueeze(0)
         # Only draw in masked regions
         edges_mask[mask == 1] = 0
