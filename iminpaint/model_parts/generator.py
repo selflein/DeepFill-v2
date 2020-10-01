@@ -13,7 +13,7 @@ class Generator(nn.Module):
       2. Refinement encoder-decoder net trained with L1 and GAN loss
     """
 
-    def __init__(self, width=1, use_contextual_attention=True):
+    def __init__(self, width=1., use_contextual_attention=True):
         super().__init__()
         self.coarse_encoder_decoder = EncoderDecoder(
             width=width, use_contextual_attention=False)
@@ -32,7 +32,7 @@ class Generator(nn.Module):
         pasted_coarse_result = masked_img + (1 - mask) * coarse_result
         refinement_inp = torch.cat([pasted_coarse_result, mask, sketch], dim=1)
 
-        fine_result = self.fine_encoder_decoder(refinement_inp)
+        fine_result = self.fine_encoder_decoder(refinement_inp, mask)
         return fine_result, coarse_result
 
 

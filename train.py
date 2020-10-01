@@ -13,7 +13,7 @@ from iminpaint.model import DeepFill
 
 @dataclass
 class Model:
-    use_contextual_attention: bool = False
+    use_contextual_attention: bool = True
     generator_width: float = 0.75
     disc_c_base: int = 64
 
@@ -62,7 +62,6 @@ class TestingTrainer(Trainer):
     overfit_batches: int = 1
     min_epochs: int = 1000
     check_val_every_n_epoch: int = 20
-
 
 
 @dataclass

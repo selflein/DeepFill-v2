@@ -29,6 +29,10 @@ class DeepFill(pl.LightningModule):
             num_workers=self.hparams.data.num_workers
         )
 
+        self.example_input_array = (torch.randn(1, 3, 256, 256),
+                                    torch.randn(1, 1, 256, 256),
+                                    torch.randn(1, 1, 256, 256))
+
     def forward(self, masked_img, mask, edges_mask):
         fine, _ = self.gen(masked_img, mask, edges_mask)
         return self.get_completed_img(masked_img, mask, fine)

@@ -1,5 +1,5 @@
 ## DeepFill v2 PyTorch
-**WIP** Unofficial implementation of "Free-Form Image Inpainting with Gated Convolution".
+**WIP** Unofficial implementation of "[Free-Form Image Inpainting with Gated Convolution](https://arxiv.org/abs/1806.03589)".
 
 ### Setup
 Install conda environment

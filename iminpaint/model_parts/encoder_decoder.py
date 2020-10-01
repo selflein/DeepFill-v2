@@ -11,39 +11,72 @@ from iminpaint.model_parts.gated_convolution import GatedConv
 
 
 class ContextualAttention(nn.Module):
+    """ See Figure 3 in the paper """
 
-    def __init__(self, use_attention_propagation=False, softmax_scale=10):
+    def __init__(self, use_attention_propagation=True, softmax_scale=10):
         super().__init__()
         self.use_attention_propagation = use_attention_propagation
-        self.softmax_scale = 10
+        self.softmax_scale = softmax_scale
 
     # TODO: Implement contextual attention
-    def forward(self, foreground, background, mask, rate=2, stride=1, ksize=3):
-        # Original image size to copy results to
-        background_cols = self.img_2_col(background, 2 * rate, rate * stride)
+    def forward(self, foreground, background, mask, rate=2, stride=1, ksize=3, fuse_k=3):
+        padding = int(ksize // 2)
+
+        # Original image to copy results to
+        cols = self.img_2_col(background, 2 * rate, rate * stride)
 
         if rate != 1:
-            foreground = F.upsample(foreground, scale_factor=1. / rate)
-            background = F.upsample(background, scale_factor=1. / rate)
-            mask = F.upsample(mask, scale_factor=1. / rate)
+            foreground = F.interpolate(foreground, scale_factor=1. / rate)
+            background = F.interpolate(background, scale_factor=1. / rate)
+            mask = F.interpolate(mask, scale_factor=1. / rate)
 
+        # Mask for background patches
         mask_cols = self.img_2_col(mask, ksize, stride)
-        masked_cols = (mask_cols.sum(2, 3, 4) == 0.).float()
+        masked_cols = (mask_cols.sum((2, 3, 4)) == 0.).float()
 
+        # Get the kernels from the background patch to convolve the
+        # foreground with
         background_kernels = self.img_2_col(background, ksize, stride)
 
-        for img, kernels, target in zip(foreground, background_kernels, background_cols):
-            kernels_normed = kernels / max(torch.sqrt(torch.sum(kernels.pow(2), dim=(1, 2, 3))), 1e-4)
-            out = F.conv2d(img.unsqueeze(0), kernels_normed, padding=1)
+        batch_outs = []
+        for i, (img, kernels, target) in enumerate(zip(foreground, background_kernels, cols)):
+            # img: Shape (c, h, w)
+            # kernels: Shape ((h // rate) * (w // rate), c, k, k)
+            # target: Shape ((h // rate) * (w // rate), c, rate * 2, rate * 2)
+            denom = torch.sqrt(torch.sum(kernels.pow(2), dim=(1, 2, 3), keepdim=True))
+            kernels_normed = kernels / torch.max(denom, torch.empty_like(denom).fill_(1e-3))
+
+            # Shape: (1, (h // rate) * (w // rate), (h // rate), (w // rate))
+            out = F.conv2d(img.unsqueeze(0), kernels_normed, padding=padding)
 
             if self.use_attention_propagation:
-                # TODO Convolve output and transposed output with identity kernel
-                pass
+                _, _, h, w = out.shape
+                padding_fuse = int(fuse_k // 2)
+                eye_kernel = torch.eye(fuse_k).view(1, 1, fuse_k, fuse_k)
 
-            out[mask_cols]
+                # Convolve output and transposed output with identity kernel
+                out = out.reshape(1, 1, h * w, h * w)
+                out = F.conv2d(out, eye_kernel, padding=padding_fuse)
+                out = (out.reshape(1, h, w, h, w)
+                          .permute(0, 2, 1, 4, 3)
+                          .reshape(1, 1, h * w, h * w))
+
+                out = F.conv2d(out, eye_kernel, padding=padding_fuse)
+                out = (out.reshape(1, h, w, h, w)
+                          .permute(0, 2, 1, 4, 3)
+                          .reshape(1, h * w, h, w))
+
+            mask = masked_cols[i, :, None, None]
+            out *= mask
             out = torch.softmax(self.softmax_scale * out, dim=1)
+            out *= mask
 
-        return inp
+            out = F.conv_transpose2d(out, target, stride=rate, padding=padding)
+
+            batch_outs.append(out)
+
+        batch_outs = torch.cat(batch_outs, dim=0)
+        return batch_outs
 
     @staticmethod
     def img_2_col(img, ksize, stride):
@@ -89,8 +122,8 @@ class EncoderDecoder(nn.Module):
                 GatedConv(32 * width, 32 * width, stride=2),
                 GatedConv(32 * width, 64 * width),
                 GatedConv(64 * width, 128 * width, stride=2),
-                GatedConv(64 * width, 128 * width),
-                GatedConv(64 * width, 128 * width, activation=nn.ReLU()),
+                GatedConv(128 * width, 128 * width),
+                GatedConv(128 * width, 128 * width, activation=nn.ReLU()),
             )
             self.contextual_attention = ContextualAttention()
             self.attention_branch_cont = nn.Sequential(
@@ -99,7 +132,7 @@ class EncoderDecoder(nn.Module):
             )
             decoder_inp_dim = int(128 * width) * 2
         else:
-            decoder_inp_dim = 128 * width
+            decoder_inp_dim = int(128 * width)
 
         self.decoder = nn.Sequential(
             GatedConv(decoder_inp_dim, 128 * width),
@@ -114,12 +147,12 @@ class EncoderDecoder(nn.Module):
             nn.Sigmoid()
         )
 
-    def forward(self, inp):
+    def forward(self, inp, mask=None):
         enc = self.encoder(inp)
 
         if self.use_contextual_attention:
             context = self.attention_branch(inp)
-            context = self.contextual_attention(context)
+            context = self.contextual_attention(context, context, mask)
             context = self.attention_branch_cont(context)
             enc = torch.cat([enc, context], dim=1)
 
@@ -127,7 +160,11 @@ class EncoderDecoder(nn.Module):
 
 
 if __name__ == '__main__':
-    net = EncoderDecoder(1, False)
+    net = EncoderDecoder(1, True)
     test_inp = torch.zeros(4, 5, 256, 256)
     output = net(test_inp)
     assert output.shape == (4, 3, 256, 256)
+
+    att = ContextualAttention(use_attention_propagation=True)
+    output = att(test_inp, test_inp, test_inp)
+    assert test_inp.shape == output.shape
