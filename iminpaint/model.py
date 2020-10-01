@@ -26,7 +26,8 @@ class DeepFill(pl.LightningModule):
             path=Path(to_absolute_path(self.hparams.data.path)),
             edges_path=Path(to_absolute_path(self.hparams.data.edges_path)),
             batch_size=self.hparams.data.batch_size,
-            num_workers=self.hparams.data.num_workers
+            num_workers=self.hparams.data.num_workers,
+            train_percentage=self.hparams.train_percentage
         )
 
         self.example_input_array = (torch.randn(1, 3, 256, 256),

@@ -24,6 +24,7 @@ class Data:
     edges_path: str = f"data/datasets/flickr_dataset/training_imgs_edges"
     batch_size: int = 4
     num_workers: int = 4
+    train_percentage: float = 0.95
 
 
 @dataclass

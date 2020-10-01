@@ -5,23 +5,24 @@ from pathlib import Path
 import cv2 as cv
 import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-from multiprocessing import Pool
-from functools import partial
 from skimage.io import imread
+import matplotlib.pyplot as plt
 
 # Based on
 # https://github.com/opencv/opencv/blob/master/samples/dnn/edge_detection.py
 
+# Edge extraction model
+# https://github.com/s9xie/hed
+
 parser = argparse.ArgumentParser(description='Generates edge masks for input '
                                              'images.')
-parser.add_argument('--input', help='Path to image folder.')
-parser.add_argument('--output', help='Path to output image folder.')
+parser.add_argument('--input_folder', help='Path to image folder.')
+parser.add_argument('--output_folder', help='Path to output image folder.')
 parser.add_argument('--prototxt', help='Path to deploy.prototxt', required=True)
 parser.add_argument('--caffemodel',
                     help='Path to hed_pretrained_bsds.caffemodel',
                     required=True)
-parser.add_argument('--visualize', type=bool, default=False)
+parser.add_argument('--visualize', action='store_true', default=False)
 
 
 class CropLayer(object):
@@ -57,13 +58,15 @@ def chunks(seq, size):
 if __name__ == '__main__':
     args = parser.parse_args()
     cv.dnn_registerLayer('Crop', CropLayer)
+    output_dir = Path(args.output_folder)
+    output_dir.mkdir(exist_ok=True, parents=True)
 
     # Load the model_parts.
     net = cv.dnn.readNetFromCaffe(args.prototxt, args.caffemodel)
     net.setPreferableTarget(cv.dnn.DNN_TARGET_OPENCL)
 
-    existing_files = set([p.name for p in Path(args.output).iterdir()])
-    remaining_files = [p for p in Path(args.input).iterdir()
+    existing_files = set([p.name for p in output_dir.iterdir()])
+    remaining_files = [p for p in Path(args.input_folder).iterdir()
                        if p.name not in existing_files]
 
     img_files = list(chunks(remaining_files, 16))
@@ -80,15 +83,12 @@ if __name__ == '__main__':
         net.setInput(inp)
         out = net.forward()
         heds = [(hed[0, :, :] > .6).astype(np.int8) * 255 for hed in out]
-        # kernel = np.ones((3, 3), np.uint8)
-        # img_erosion = cv.erode(hed, kernel, iterations=1)
         if args.visualize:
-            fig, ax = plt.subplots(3, 1)
+            fig, ax = plt.subplots(2, 1)
             ax[0].imshow(frames[0])
             ax[1].imshow(heds[0])
-            # ax[2].imshow(img_erosion)
             plt.show()
 
-        out_paths = map(lambda p: os.path.join(args.output, p.name), img_chunk)
+        out_paths = map(lambda p: output_dir / p.name, img_chunk)
         for path, hed in zip(out_paths, heds):
-            cv.imwrite(path, hed)
+            cv.imwrite(str(path), hed)
