@@ -22,7 +22,6 @@ class Model:
 class Data:
     path: str = f"data/datasets/flickr_dataset/training_imgs"
     edges_path: str = f"data/datasets/flickr_dataset/training_imgs_edges"
-    batch_size: int = 4
     num_workers: int = 4
     train_percentage: float = 0.95
 
@@ -31,6 +30,7 @@ class Data:
 class Training:
     model: Model = Model()
     data: Data = Data()
+    batch_size: int = 4
 
 
 @dataclass
@@ -52,7 +52,8 @@ class ModelCheckpoint:
 @dataclass
 class Trainer:
     min_epochs: int = 5
-    gpus: List[int] = field(default_factory=lambda: [0])
+    gpus: List[int] = field(default_factory=lambda: [])
+    precision: int = 32
 
 
 @dataclass
@@ -69,6 +70,7 @@ class TestingTrainer(Trainer):
 class Config:
     defaults: List[Any] = field(default_factory=lambda: [{'trainer': 'trainer'}])
     resume_from_checkpoint: Optional[str] = None
+    config: Optional[str] = None
     trainer: Trainer = Trainer()
     training: Training = Training()
     early_stopping: EarlyStopping = EarlyStopping()
@@ -84,6 +86,9 @@ cs.store(group='trainer', name='testing_trainer', node=TestingTrainer)
 
 @hydra.main(config_name='config')
 def train(cfg: Config) -> None:
+    if cfg.config is not None:
+        cfg = omegaconf.OmegaConf.load(to_absolute_path(cfg.config))
+
     print(omegaconf.OmegaConf.to_yaml(cfg))
     model = DeepFill(hparams=cfg.training)
 

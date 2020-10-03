@@ -25,7 +25,7 @@ class DeepFill(pl.LightningModule):
         self.train_loader, self.val_loader = dataloaders.create_train_val_loader(
             path=Path(to_absolute_path(self.hparams.data.path)),
             edges_path=Path(to_absolute_path(self.hparams.data.edges_path)),
-            batch_size=self.hparams.data.batch_size,
+            batch_size=self.hparams.batch_size,
             num_workers=self.hparams.data.num_workers,
             train_percentage=self.hparams.data.train_percentage
         )
@@ -52,7 +52,7 @@ class DeepFill(pl.LightningModule):
                 # Skip the optimization of generator for this batch
                 # This is somewhat of a hack since PL does not easily allow
                 # skipping a training step
-                return {'loss': torch.tensor(0., requires_grad=True)}
+                return {'loss': torch.tensor(0., requires_grad=True).to(self.device.type)}
             gen_loss, l1_loss = self.generator_step(batch)
             res = pl.TrainResult(gen_loss + l1_loss)
             res.log('train/l1_loss', l1_loss)

@@ -10,7 +10,7 @@ from iminpaint.data.dataloader import data_utils, datasets
 def create_train_val_loader(
         path: Path,
         edges_path: Path,
-        transform=data_utils.regular_data_transform(),
+        transform=ToTensor(),
         transform_val=ToTensor(),
         train_percentage=0.85,
         shuffle=True,

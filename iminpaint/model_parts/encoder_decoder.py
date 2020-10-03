@@ -11,15 +11,29 @@ from iminpaint.model_parts.gated_convolution import GatedConv
 
 
 class ContextualAttention(nn.Module):
-    """ See Figure 3 in the paper """
+    """ See Figure 3 in the paper for more information.
+    """
 
-    def __init__(self, use_attention_propagation=True, softmax_scale=10):
+    def __init__(self, use_attention_propagation=True, softmax_scale=10, rate=2, stride=1, ksize=3, fuse_k=3):
         super().__init__()
         self.use_attention_propagation = use_attention_propagation
         self.softmax_scale = softmax_scale
+        self.rate = rate
+        self.stride = stride
+        self.ksize = ksize
+        self.fuse_k = fuse_k
 
-    # TODO: Implement contextual attention
-    def forward(self, foreground, background, mask, rate=2, stride=1, ksize=3, fuse_k=3):
+        self.register_parameter(
+            'fuse_kernel',
+            nn.Parameter(
+                torch.eye(fuse_k).view(1, 1, fuse_k, fuse_k),
+                requires_grad=False
+            )
+        )
+
+    def forward(self, foreground, background, mask):
+        rate, stride, ksize, fuse_k = \
+            self.rate, self.stride, self.ksize, self.fuse_k
         padding = int(ksize // 2)
 
         # Original image to copy results to
@@ -52,16 +66,15 @@ class ContextualAttention(nn.Module):
             if self.use_attention_propagation:
                 _, _, h, w = out.shape
                 padding_fuse = int(fuse_k // 2)
-                eye_kernel = torch.eye(fuse_k).view(1, 1, fuse_k, fuse_k).cuda()
 
                 # Convolve output and transposed output with identity kernel
                 out = out.reshape(1, 1, h * w, h * w)
-                out = F.conv2d(out, eye_kernel, padding=padding_fuse)
+                out = F.conv2d(out, self.fuse_kernel, padding=padding_fuse)
                 out = (out.reshape(1, h, w, h, w)
                           .permute(0, 2, 1, 4, 3)
                           .reshape(1, 1, h * w, h * w))
 
-                out = F.conv2d(out, eye_kernel, padding=padding_fuse)
+                out = F.conv2d(out, self.fuse_kernel, padding=padding_fuse)
                 out = (out.reshape(1, h, w, h, w)
                           .permute(0, 2, 1, 4, 3)
                           .reshape(1, h * w, h, w))

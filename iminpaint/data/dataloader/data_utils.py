@@ -4,17 +4,8 @@ from typing import Tuple
 import cv2
 import torch
 import numpy as np
-from torchvision import transforms
 
 from tqdm import tqdm
-
-
-def regular_data_transform():
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        # transforms.Normalize((0.4422, 0.4462, 0.4205), (0.2678, 0.2600, 0.2976))
-    ])
-    return transform
 
 
 def online_mean_and_sd(loader):
