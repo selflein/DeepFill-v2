@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import torch
+from torch import nn
 from torch import optim
 import pytorch_lightning as pl
 from torch.nn import functional as F
@@ -30,9 +31,13 @@ class DeepFill(pl.LightningModule):
             train_percentage=self.hparams.data.train_percentage
         )
 
-        self.example_input_array = (torch.randn(1, 3, 256, 256),
-                                    torch.randn(1, 1, 256, 256),
-                                    torch.randn(1, 1, 256, 256))
+        def init_weights(m):
+            if type(m) == nn.Conv2d:
+                torch.nn.init.kaiming_normal_(m.weight, mode='fan_out',
+                                              nonlinearity='relu')
+
+        self.disc.apply(init_weights)
+        self.gen.apply(init_weights)
 
     def forward(self, masked_img, mask, edges_mask):
         fine, _ = self.gen(masked_img, mask, edges_mask)
@@ -69,8 +74,8 @@ class DeepFill(pl.LightningModule):
         # TODO: Add spatially discounted L1 loss
         l1_loss = F.l1_loss(coarse, img)
         l1_loss += F.l1_loss(fine, img)
-
-        scores_fake = self.disc(completed, mask, edges_mask)
+        with torch.no_grad():
+            scores_fake = self.disc(completed, mask, edges_mask)
         gen_loss = -scores_fake.mean()
 
         return gen_loss, l1_loss

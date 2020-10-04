@@ -52,7 +52,7 @@ class ModelCheckpoint:
 @dataclass
 class Trainer:
     min_epochs: int = 5
-    gpus: List[int] = field(default_factory=lambda: [])
+    gpus: List = field(default_factory=lambda: [0])
     precision: int = 32
 
 

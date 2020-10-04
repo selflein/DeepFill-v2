@@ -45,15 +45,16 @@ class ContextualAttention(nn.Module):
             mask = F.interpolate(mask, scale_factor=1. / rate)
 
         # Mask for background patches
+        # True for patches belonging to foreground and False for background
         mask_cols = self.img_2_col(mask, ksize, stride)
-        masked_cols = mask_cols.sum((2, 3, 4)) == 0.
+        masked_cols = mask_cols.sum((2, 3, 4)) != 0.
 
         # Get the kernels from the background patch to convolve the
         # foreground with
-        background_kernels = self.img_2_col(background, ksize, stride)
+        kernels = self.img_2_col(background, ksize, stride)
 
         batch_outs = []
-        for i, (img, kernels, target) in enumerate(zip(foreground, background_kernels, cols)):
+        for i, (img, kernels, target) in enumerate(zip(foreground, kernels, cols)):
             # img: Shape (c, h, w)
             # kernels: Shape ((h // rate) * (w // rate), c, k, k)
             # target: Shape ((h // rate) * (w // rate), c, rate * 2, rate * 2)
@@ -79,10 +80,13 @@ class ContextualAttention(nn.Module):
                           .permute(0, 2, 1, 4, 3)
                           .reshape(1, h * w, h, w))
 
+            # Set the channels corresponding to kernels extracted from the
+            # foreground to have no impact in the attention as we only want to
+            # convolve the background with the foreground
             out[:, masked_cols[i]] = -1000
             out = torch.softmax(self.softmax_scale * out, dim=1)
 
-            out = F.conv_transpose2d(out, target, stride=rate, padding=padding)
+            out = F.conv_transpose2d(out, target, stride=rate, padding=padding) / 4.
 
             batch_outs.append(out)
 
@@ -154,7 +158,7 @@ class EncoderDecoder(nn.Module):
             nn.Upsample(scale_factor=2, mode='nearest'),
             GatedConv(64 * width, 32 * width),
             GatedConv(32 * width, 16 * width),
-            GatedConv(16 * width, 3, activation=None),
+            nn.Conv2d(int(16 * width), 3, 3, 1, 1, padding_mode='replicate'),
             nn.Sigmoid()
         )
 
