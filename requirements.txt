@@ -44,7 +44,7 @@ torch==1.6.0
 torchvision==0.7.0
 tqdm==4.50.0
 typing-extensions==3.7.4.3
-urllib3==1.25.10
+urllib3==1.26.5
 Werkzeug==1.0.1
 yarl==1.6.0
 zipp==3.2.0
