@@ -27,7 +27,7 @@ omegaconf==2.0.2
 opencv-python==4.4.0.44
 packaging==20.4
 Pillow==8.3.2
-protobuf==3.13.0
+protobuf==3.18.3
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pyparsing==2.4.7
